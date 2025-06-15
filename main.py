@@ -6,7 +6,7 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 import qtawesome as qta
-from PIL import Image, features
+from PIL import Image
 
 # Import AVIF support
 try:
