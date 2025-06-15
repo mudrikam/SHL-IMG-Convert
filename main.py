@@ -6,7 +6,13 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 import qtawesome as qta
-from PIL import Image
+from PIL import Image, features
+
+# Import AVIF support
+try:
+    import pillow_avif  # Enable AVIF support
+except ImportError:
+    pass
 
 class ImageConverter(QWidget):
     def __init__(self):
@@ -209,8 +215,7 @@ class ImageConverter(QWidget):
         format_layout.addStretch()
         
         self.format_combo = QComboBox()
-        # Only supported formats
-        formats = ['PNG', 'JPEG', 'WEBP', 'BMP', 'ICO']
+        formats = ['PNG', 'JPEG', 'WEBP', 'AVIF', 'BMP', 'ICO']
         self.format_combo.addItems(formats)
         self.format_combo.setCurrentText('PNG')
         self.format_combo.currentTextChanged.connect(self.on_format_changed)
@@ -411,7 +416,7 @@ class ImageConverter(QWidget):
     
     def browse_output_dir(self):
         """Open dialog to select output directory"""
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Directory", self.output_dir)
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Directory", self.output_dir)        
         if dir_path:
             self.output_dir = dir_path
             self.output_path_label.setText(self.truncate_path(dir_path))
@@ -419,11 +424,11 @@ class ImageConverter(QWidget):
         
     def on_format_changed(self, format_name):
         # Show/hide quality, compression, and ICO controls based on format
-        quality_formats = ['JPEG', 'WEBP']
+        quality_formats = ['JPEG', 'WEBP', 'AVIF']
         self.quality_widget.setVisible(format_name in quality_formats)
         self.compression_widget.setVisible(format_name == 'PNG')
         self.ico_widget.setVisible(format_name == 'ICO')
-        
+    
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -463,9 +468,13 @@ class ImageConverter(QWidget):
         event.acceptProposedAction()
     
     def browse_files(self, event=None):
+        supported_extensions = "*.png *.jpg *.jpeg *.webp *.avif *.bmp *.ico"
+        filter_parts = ["PNG (*.png)", "JPEG (*.jpg *.jpeg)", "WebP (*.webp)", "AVIF (*.avif)", "BMP (*.bmp)", "ICO (*.ico)"]
+        
+        file_filter = f"Supported Images ({supported_extensions});;" + ";;".join(filter_parts) + ";;All Files (*)"
+        
         files, _ = QFileDialog.getOpenFileNames(
-            self, "Select Source Images", str(Path.home()),
-            "Supported Images (*.png *.jpg *.jpeg *.webp *.bmp *.ico);;PNG (*.png);;JPEG (*.jpg *.jpeg);;WebP (*.webp);;BMP (*.bmp);;ICO (*.ico);;All Files (*)"
+            self, "Select Source Images", str(Path.home()), file_filter
         )
         if files:
             self.load_images(files)
@@ -595,7 +604,10 @@ class ImageConverter(QWidget):
                             save_kwargs['optimize'] = True
                         elif target_format == 'webp':
                             save_kwargs['quality'] = self.quality_slider.value()
-                            save_kwargs['method'] = 6
+                            save_kwargs['method'] = 6                        
+                        elif target_format == 'avif':
+                            save_kwargs['quality'] = self.quality_slider.value()
+                            save_kwargs['speed'] = 6  # Balance between speed and compression
                         elif target_format == 'png':
                             save_kwargs['compress_level'] = self.compression_slider.value()
                             save_kwargs['optimize'] = True
