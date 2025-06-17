@@ -14,6 +14,13 @@ try:
 except ImportError:
     pass
 
+# Import HEIF/HEIC support
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass
+
 class ImageConverter(QWidget):
     def __init__(self):
         super().__init__()
@@ -215,7 +222,7 @@ class ImageConverter(QWidget):
         format_layout.addStretch()
         
         self.format_combo = QComboBox()
-        formats = ['PNG', 'JPEG', 'WEBP', 'AVIF', 'BMP', 'ICO']
+        formats = ['PNG', 'JPG', 'JPEG', 'WEBP', 'AVIF', 'BMP', 'ICO']
         self.format_combo.addItems(formats)
         self.format_combo.setCurrentText('PNG')
         self.format_combo.currentTextChanged.connect(self.on_format_changed)
@@ -424,7 +431,7 @@ class ImageConverter(QWidget):
         
     def on_format_changed(self, format_name):
         # Show/hide quality, compression, and ICO controls based on format
-        quality_formats = ['JPEG', 'WEBP', 'AVIF']
+        quality_formats = ['JPG', 'JPEG', 'WEBP', 'AVIF']
         self.quality_widget.setVisible(format_name in quality_formats)
         self.compression_widget.setVisible(format_name == 'PNG')
         self.ico_widget.setVisible(format_name == 'ICO')
@@ -464,15 +471,24 @@ class ImageConverter(QWidget):
     def dropEvent(self, event):
         self.dragLeaveEvent(event)
         files = [url.toLocalFile() for url in event.mimeData().urls()]
+        # Filter hanya file gambar yang didukung (termasuk .heic/.heif)
+        supported_ext = ('.png', '.jpg', '.jpeg', '.webp', '.avif', '.bmp', '.ico', '.heic', '.heif')
+        files = [f for f in files if f.lower().endswith(supported_ext)]
         self.load_images(files)
         event.acceptProposedAction()
     
     def browse_files(self, event=None):
-        supported_extensions = "*.png *.jpg *.jpeg *.webp *.avif *.bmp *.ico"
-        filter_parts = ["PNG (*.png)", "JPEG (*.jpg *.jpeg)", "WebP (*.webp)", "AVIF (*.avif)", "BMP (*.bmp)", "ICO (*.ico)"]
-        
+        supported_extensions = "*.png *.jpg *.jpeg *.webp *.avif *.bmp *.ico *.heic *.heif"
+        filter_parts = [
+            "PNG (*.png)",
+            "JPEG (*.jpg *.jpeg)",
+            "WebP (*.webp)",
+            "AVIF (*.avif)",
+            "BMP (*.bmp)",
+            "ICO (*.ico)",
+            "HEIC/HEIF (*.heic *.heif)"
+        ]
         file_filter = f"Supported Images ({supported_extensions});;" + ";;".join(filter_parts) + ";;All Files (*)"
-        
         files, _ = QFileDialog.getOpenFileNames(
             self, "Select Source Images", str(Path.home()), file_filter
         )
@@ -485,7 +501,7 @@ class ImageConverter(QWidget):
             try:
                 with Image.open(file) as img:
                     valid_files.append(file)
-            except:
+            except Exception as e:
                 continue
         
         if valid_files:
@@ -534,6 +550,16 @@ class ImageConverter(QWidget):
             return
         
         target_format = self.format_combo.currentText().lower()
+        # Untuk JPG/JPEG, gunakan format 'JPEG' dan ekstensi sesuai pilihan
+        if target_format == 'jpg':
+            save_format = 'JPEG'
+            ext = 'jpg'
+        elif target_format == 'jpeg':
+            save_format = 'JPEG'
+            ext = 'jpeg'
+        else:
+            save_format = target_format.upper()
+            ext = target_format.lower()
         rescale_percent = self.rescale_slider.value()
         converted = 0
         total_files = len(self.image_paths)
@@ -588,30 +614,22 @@ class ImageConverter(QWidget):
                         base_name = Path(img_path).stem
                         if rescale_percent != 100:
                             base_name += f"_{rescale_percent}pct"
-                        
-                        # Add timestamp to filename
                         base_name += f"_{timestamp}"
-                        
-                        ext_map = {'jpeg': 'jpg'}
-                        ext = ext_map.get(target_format, target_format)
                         output_path = Path(self.output_dir) / f"{base_name}.{ext}"
-                        
-                        # Prepare save arguments based on format
                         save_kwargs = {}
-                        
-                        if target_format == 'jpeg':
+                        if save_format == 'JPEG':
                             save_kwargs['quality'] = self.quality_slider.value()
                             save_kwargs['optimize'] = True
-                        elif target_format == 'webp':
+                        elif save_format == 'WEBP':
                             save_kwargs['quality'] = self.quality_slider.value()
-                            save_kwargs['method'] = 6                        
-                        elif target_format == 'avif':
+                            save_kwargs['method'] = 6
+                        elif save_format == 'AVIF':
                             save_kwargs['quality'] = self.quality_slider.value()
-                            save_kwargs['speed'] = 6  # Balance between speed and compression
-                        elif target_format == 'png':
+                            save_kwargs['speed'] = 6
+                        elif save_format == 'PNG':
                             save_kwargs['compress_level'] = self.compression_slider.value()
                             save_kwargs['optimize'] = True
-                        elif target_format == 'ico':
+                        elif save_format == 'ICO':
                             # ICO with multiple standard sizes
                             ico_sizes = [(16,16), (32,32), (48,48), (64,64), (128,128), (256,256)]
                             
@@ -715,7 +733,7 @@ class ImageConverter(QWidget):
                                 continue
                         
                         # For non-ICO formats
-                        img.save(output_path, format=target_format.upper(), **save_kwargs)
+                        img.save(output_path, format=save_format, **save_kwargs)
                         converted += 1
                         
                 except Exception as e:
