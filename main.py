@@ -42,12 +42,9 @@ class ImageConverter(QWidget):
     
     def center_window(self):
         """Center the window on the primary screen"""
-        # Calculate the center position on screen
         screen_rect = QGuiApplication.primaryScreen().availableGeometry()
         window_rect = self.frameGeometry()
         center_point = screen_rect.center()
-        
-        # Move window to center
         window_rect.moveCenter(center_point)
         self.move(window_rect.topLeft())
         
@@ -594,9 +591,12 @@ class ImageConverter(QWidget):
                             new_height = int(img.size[1] * rescale_percent / 100)
                             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
                         
-                        # Convert RGBA to RGB for formats that don't support transparency
                         rgb_only_formats = ['jpeg', 'bmp']
-                        if target_format in rgb_only_formats and img.mode in ('RGBA', 'LA', 'P'):
+                        # Always convert to RGB for JPEG/JPG to avoid mode errors
+                        if target_format in ['jpg', 'jpeg']:
+                            if img.mode != 'RGB':
+                                img = img.convert('RGB')
+                        elif target_format in rgb_only_formats and img.mode in ('RGBA', 'LA', 'P'):
                             if img.mode == 'P' and 'transparency' in img.info:
                                 img = img.convert('RGBA')
                             if img.mode in ('RGBA', 'LA'):
