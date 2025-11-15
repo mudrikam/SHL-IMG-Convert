@@ -238,14 +238,14 @@ class ImageConverter(QWidget):
         quality_header.addWidget(quality_icon)
         quality_header.addWidget(QLabel("Image Quality:"))
         quality_header.addStretch()
-        self.quality_value_label = QLabel("95%")
+        self.quality_value_label = QLabel("100%")
         self.quality_value_label.setStyleSheet("font-weight: bold; color: #e12a61;")
         quality_header.addWidget(self.quality_value_label)
         quality_layout.addLayout(quality_header)
         
         self.quality_slider = QSlider(Qt.Horizontal)
         self.quality_slider.setRange(1, 100)
-        self.quality_slider.setValue(95)
+        self.quality_slider.setValue(100)
         self.quality_slider.valueChanged.connect(lambda v: self.quality_value_label.setText(f"{v}%"))
         quality_layout.addWidget(self.quality_slider)
         
