@@ -226,6 +226,12 @@ class ImageConverter(QWidget):
         format_layout.addWidget(self.format_combo)
         
         output_layout.addLayout(format_layout)
+
+        # Timestamp option
+        self.timestamp_checkbox = QCheckBox("Append timestamp to filename")
+        self.timestamp_checkbox.setChecked(True)
+        self.timestamp_checkbox.setToolTip("Include a timestamp in output filenames to avoid overwriting existing files")
+        output_layout.addWidget(self.timestamp_checkbox)
         
         # Quality slider (for JPEG, WEBP)
         self.quality_widget = QWidget()
@@ -574,8 +580,11 @@ class ImageConverter(QWidget):
         self.browse_btn.setEnabled(False)
         self.output_dir_btn.setEnabled(False)
         
-        # Get current timestamp for filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Get current timestamp for filename if enabled
+        if self.timestamp_checkbox.isChecked():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        else:
+            timestamp = None
         
         try:
             for i, img_path in enumerate(self.image_paths):
@@ -614,7 +623,8 @@ class ImageConverter(QWidget):
                         base_name = Path(img_path).stem
                         if rescale_percent != 100:
                             base_name += f"_{rescale_percent}pct"
-                        base_name += f"_{timestamp}"
+                        if timestamp:
+                            base_name += f"_{timestamp}"
                         output_path = Path(self.output_dir) / f"{base_name}.{ext}"
                         save_kwargs = {}
                         if save_format == 'JPEG':
